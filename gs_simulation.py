@@ -106,7 +106,7 @@ if __name__ == "__main__":
     
     
     #################
-    """
+    
     gaussians2 = GaussianModel(3)
     gaussians2.load_ply("./model/wolf-trained/point_cloud/iteration_30000/point_cloud.ply")
     
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     concat_gaussian_model(gaussians, gaussians2)
     
-    """
+    
     #################
     
     pipeline = PipelineParamsNoparse()
