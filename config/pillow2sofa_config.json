@@ -1,5 +1,5 @@
 {
-    "opacity_threshold": 0.02,
+    "opacity_threshold": 0.2,
     "rotation_degree": [],
     "rotation_axis": [],
     "substep_dt": 1e-4,
@@ -24,7 +24,7 @@
         1
     ],
     "particle_filling": {
-        "n_grid": 128,
+        "n_grid": 80,
         "density_threshold": 40.0,
         "search_threshold": 0.5,
         "search_exclude_direction": 5,

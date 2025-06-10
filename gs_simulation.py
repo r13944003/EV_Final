@@ -6,6 +6,7 @@ import argparse
 import math
 import cv2
 import torch
+import torch.nn as nn
 import os
 import numpy as np
 import json
@@ -28,6 +29,7 @@ from mpm_solver_warp.engine_utils import *
 from mpm_solver_warp.mpm_solver_warp import MPM_Simulator_WARP
 import warp as wp
 
+
 # Particle filling dependencies
 from particle_filling.filling import *
 
@@ -36,6 +38,8 @@ from utils.decode_param import *
 from utils.transformation_utils import *
 from utils.camera_view_utils import *
 from utils.render_utils import *
+
+from utils.additional import set_water_style
 
 wp.init()
 wp.config.verify_cuda = True
@@ -60,12 +64,10 @@ def load_checkpoint(model_path, sh_degree=3, iteration=-1):
     checkpt_path = os.path.join(
         checkpt_dir, f"iteration_{iteration}", "point_cloud.ply"
     )
-
     # Load guassians
     gaussians = GaussianModel(sh_degree)
     gaussians.load_ply(checkpt_path)
     return gaussians
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -101,6 +103,44 @@ if __name__ == "__main__":
     print("Loading gaussians...")
     model_path = args.model_path
     gaussians = load_checkpoint(model_path)
+    
+    
+    #################
+    """
+    gaussians2 = GaussianModel(3)
+    gaussians2.load_ply("./model/wolf-trained/point_cloud/iteration_30000/point_cloud.ply")
+    
+    with torch.no_grad():
+        gaussians2._xyz += torch.tensor([0.0, 0.0, 2.0], device=gaussians2._xyz.device)
+    def concat_gaussian_model(gm1, gm2):
+        gm1._xyz = nn.Parameter(torch.cat([gm1._xyz, gm2._xyz], dim=0).detach().requires_grad_(True))
+        gm1._features_dc = nn.Parameter(torch.cat([gm1._features_dc, gm2._features_dc], dim=0).detach().requires_grad_(True))
+        gm1._features_rest = nn.Parameter(torch.cat([gm1._features_rest, gm2._features_rest], dim=0).detach().requires_grad_(True))
+        gm1._opacity = nn.Parameter(torch.cat([gm1._opacity, gm2._opacity], dim=0).detach().requires_grad_(True))
+        gm1._scaling = nn.Parameter(torch.cat([gm1._scaling, gm2._scaling], dim=0).detach().requires_grad_(True))
+        gm1._rotation = nn.Parameter(torch.cat([gm1._rotation, gm2._rotation], dim=0).detach().requires_grad_(True))
+
+        gm1.active_sh_degree = max(gm1.active_sh_degree, gm2.active_sh_degree)
+        gm1.max_sh_degree = max(gm1.max_sh_degree, gm2.max_sh_degree)
+
+        print(f"[Merged into gm1] Total Gaussians: {gm1._xyz.shape[0]}")
+        
+    def print_xyz_bounds(gm, name="model"):
+        xyz = gm._xyz.detach().cpu()
+        min_xyz = xyz.min(dim=0).values
+        max_xyz = xyz.max(dim=0).values
+        print(f"{name} XYZ bounds:")
+        print(f"  X: {min_xyz[0]:.4f} ~ {max_xyz[0]:.4f}")
+        print(f"  Y: {min_xyz[1]:.4f} ~ {max_xyz[1]:.4f}")
+        print(f"  Z: {min_xyz[2]:.4f} ~ {max_xyz[2]:.4f}")
+    print_xyz_bounds(gaussians, 'GM1')
+    print_xyz_bounds(gaussians2, 'GM2')
+
+    concat_gaussian_model(gaussians, gaussians2)
+    
+    """
+    #################
+    
     pipeline = PipelineParamsNoparse()
     pipeline.compute_cov3D_python = True
     background = (
@@ -108,6 +148,10 @@ if __name__ == "__main__":
         if args.white_bg
         else torch.tensor([0, 0, 0], dtype=torch.float32, device="cuda")
     )
+    
+    # Set Water Style
+    if material_params['material'] == 'water':
+        set_water_style(gaussians)
 
     # init the scene
     print("Initializing scene and pre-processing...")
@@ -126,8 +170,9 @@ if __name__ == "__main__":
     init_opacity = init_opacity[mask, :]
     init_screen_points = init_screen_points[mask, :]
     init_shs = init_shs[mask, :]
+    print(init_pos.shape[0])
 
-    # rorate and translate object
+    # rotate and translate object
     if args.debug:
         if not os.path.exists("./log"):
             os.makedirs("./log")
@@ -144,7 +189,7 @@ if __name__ == "__main__":
     if args.debug:
         particle_position_tensor_to_ply(rotated_pos, "./log/rotated_particles.ply")
 
-    # select a sim area and save params of unslected particles
+    # select a sim area and save params of unselected particles
     unselected_pos, unselected_cov, unselected_opacity, unselected_shs = (
         None,
         None,
@@ -168,7 +213,7 @@ if __name__ == "__main__":
         init_cov = init_cov[mask, :]
         init_opacity = init_opacity[mask, :]
         init_shs = init_shs[mask, :]
-
+        
     transformed_pos, scale_origin, original_mean_pos = transform2origin(rotated_pos, preprocessing_params["scale"])
     transformed_pos = shift2center111(transformed_pos)
 
@@ -227,6 +272,7 @@ if __name__ == "__main__":
             init_opacity,
             mpm_init_pos[gs_num:],
         )
+
         gs_num = mpm_init_pos.shape[0]
     else:
         mpm_init_cov = torch.zeros((mpm_init_pos.shape[0], 6), device=device)
@@ -377,3 +423,4 @@ if __name__ == "__main__":
         os.system(
             f"ffmpeg -framerate {fps} -i {args.output_path}/%04d.png -c:v libx264 -s {width}x{height} -y -pix_fmt yuv420p {args.output_path}/output.mp4"
         )
+

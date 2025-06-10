@@ -47,6 +47,9 @@ def decode_param_json(json_file):
 
     if "friction_angle" in sim_params.keys():
         material_params["friction_angle"] = sim_params["friction_angle"]
+    
+    if "cohesion" in sim_params.keys():
+        material_params["cohesion"] = sim_params["cohesion"]
 
     if "plastic_viscosity" in sim_params.keys():
         material_params["plastic_viscosity"] = sim_params["plastic_viscosity"]
@@ -63,9 +66,6 @@ def decode_param_json(json_file):
 
     if "rpic_damping" in sim_params.keys():
         material_params["rpic_damping"] = sim_params["rpic_damping"]
-
-    if "pic_damping" in sim_params.keys():
-        material_params["pic_damping"] = sim_params["pic_damping"]
 
     if "softening" in sim_params.keys():
         material_params["softening"] = sim_params["softening"]
@@ -285,7 +285,19 @@ def set_boundary_conditions(
                 start_time=start_time,
             )
         elif bc["type"] == "bounding_box":
-            mpm_solver.add_bounding_box()
+            start_time = 0.0
+            if "start_time" in bc.keys():
+                start_time = bc["start_time"]
+            end_time = 999.0
+            if "end_time" in bc.keys():
+                end_time = bc["end_time"]
+            padding = 3
+            if "padding" in bc.keys():
+                padding = bc["padding"]
+            restitution = 0.1
+            if "restitution" in bc.keys():
+                restitution = bc["restitution"]
+            mpm_solver.add_bounding_box(start_time, end_time, padding, restitution)
 
         elif bc["type"] == "enforce_particle_translation":
             assert "point" in bc.keys()

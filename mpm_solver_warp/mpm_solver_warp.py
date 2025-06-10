@@ -39,7 +39,7 @@ class MPM_Simulator_WARP:
         self.mpm_model.update_cov_with_F = False
 
         # material is used to switch between different elastoplastic models. 0 is jelly
-        self.mpm_model.material = 0
+        self.mpm_model.material = wp.zeros(shape=n_particles, dtype=int, device=device)
 
         self.mpm_model.plastic_viscosity = 0.0
         self.mpm_model.softening = 0.1
@@ -49,6 +49,8 @@ class MPM_Simulator_WARP:
         self.mpm_model.friction_angle = 25.0
         sin_phi = wp.sin(self.mpm_model.friction_angle / 180.0 * 3.14159265)
         self.mpm_model.alpha = wp.sqrt(2.0 / 3.0) * 2.0 * sin_phi / (3.0 - sin_phi)
+        
+        self.mpm_model.cohesion = 0.0
 
         self.mpm_model.gravitational_accelaration = wp.vec3(0.0, 0.0, 0.0)
 
@@ -246,20 +248,25 @@ class MPM_Simulator_WARP:
 
     def set_parameters_dict(self, kwargs={}, device="cuda:0"):
         if "material" in kwargs:
+            material=0
             if kwargs["material"] == "jelly":
-                self.mpm_model.material = 0
+                material = 0
             elif kwargs["material"] == "metal":
-                self.mpm_model.material = 1
+                material = 1
             elif kwargs["material"] == "sand":
-                self.mpm_model.material = 2
+                material = 2
             elif kwargs["material"] == "foam":
-                self.mpm_model.material = 3
+                material = 3
             elif kwargs["material"] == "snow":
-                self.mpm_model.material = 4
+                material = 4
             elif kwargs["material"] == "plasticine":
-                self.mpm_model.material = 5
+                material = 5
+            elif kwargs["material"] == "water":
+                material = 6
             else:
                 raise TypeError("Undefined material type")
+            np_array = np.full(self.n_particles, material, dtype=np.int32)
+            self.mpm_model.material = wp.array(np_array, dtype=wp.int32, device=device)
 
         if "grid_lim" in kwargs:
             self.mpm_model.grid_lim = kwargs["grid_lim"]
@@ -320,6 +327,10 @@ class MPM_Simulator_WARP:
             self.mpm_model.friction_angle = kwargs["friction_angle"]
             sin_phi = wp.sin(self.mpm_model.friction_angle / 180.0 * 3.14159265)
             self.mpm_model.alpha = wp.sqrt(2.0 / 3.0) * 2.0 * sin_phi / (3.0 - sin_phi)
+        
+        ### Add Cohesion  
+        if "cohesion" in kwargs:
+            self.mpm_model.cohesion = kwargs["cohesion"]
 
         if "g" in kwargs:
             self.mpm_model.gravitational_accelaration = wp.vec3(
@@ -361,6 +372,22 @@ class MPM_Simulator_WARP:
                 param_modifier.density = params["density"]
                 param_modifier.E = params["E"]
                 param_modifier.nu = params["nu"]
+                if params["material"] == "jelly":
+                    param_modifier.material = 0
+                elif params["material"] == "metal":
+                    param_modifier.material = 1
+                elif params["material"] == "sand":
+                    param_modifier.material = 2
+                elif params["material"] == "foam":
+                    param_modifier.material = 3
+                elif params["material"] == "snow":
+                    param_modifier.material = 4
+                elif params["material"] == "plasticine":
+                    param_modifier.material = 5
+                elif params["material"] == "water":
+                    param_modifier.material = 6
+                else:
+                    raise TypeError("Undefined material type")
                 wp.launch(
                     kernel=apply_additional_params,
                     dim=self.n_particles,
@@ -777,10 +804,12 @@ class MPM_Simulator_WARP:
         self.grid_postprocess.append(collide)
         self.modify_bc.append(modify)
 
-    def add_bounding_box(self, start_time=0.0, end_time=999.0):
+    def add_bounding_box(self, start_time=0.0, end_time=999.0, padding=1, restitution=0.3):
         collider_param = Dirichlet_collider()
         collider_param.start_time = start_time
         collider_param.end_time = end_time
+        collider_param.padding = padding
+        collider_param.restitution = restitution
 
         self.collider_params.append(collider_param)
 
@@ -793,55 +822,29 @@ class MPM_Simulator_WARP:
             param: Dirichlet_collider,
         ):
             grid_x, grid_y, grid_z = wp.tid()
-            padding = 3
+            padding = param.padding
+            restitution = param.restitution  # 👈 可調整，1.0 完全反彈，0.0 為原本行為
+
             if time >= param.start_time and time < param.end_time:
-                if grid_x < padding and state.grid_v_out[grid_x, grid_y, grid_z][0] < 0:
-                    state.grid_v_out[grid_x, grid_y, grid_z] = wp.vec3(
-                        0.0,
-                        state.grid_v_out[grid_x, grid_y, grid_z][1],
-                        state.grid_v_out[grid_x, grid_y, grid_z][2],
-                    )
-                if (
-                    grid_x >= model.grid_dim_x - padding
-                    and state.grid_v_out[grid_x, grid_y, grid_z][0] > 0
-                ):
-                    state.grid_v_out[grid_x, grid_y, grid_z] = wp.vec3(
-                        0.0,
-                        state.grid_v_out[grid_x, grid_y, grid_z][1],
-                        state.grid_v_out[grid_x, grid_y, grid_z][2],
-                    )
+                v = state.grid_v_out[grid_x, grid_y, grid_z]
 
-                if grid_y < padding and state.grid_v_out[grid_x, grid_y, grid_z][1] < 0:
-                    state.grid_v_out[grid_x, grid_y, grid_z] = wp.vec3(
-                        state.grid_v_out[grid_x, grid_y, grid_z][0],
-                        0.0,
-                        state.grid_v_out[grid_x, grid_y, grid_z][2],
-                    )
-                if (
-                    grid_y >= model.grid_dim_y - padding
-                    and state.grid_v_out[grid_x, grid_y, grid_z][1] > 0
-                ):
-                    state.grid_v_out[grid_x, grid_y, grid_z] = wp.vec3(
-                        state.grid_v_out[grid_x, grid_y, grid_z][0],
-                        0.0,
-                        state.grid_v_out[grid_x, grid_y, grid_z][2],
-                    )
+                if grid_x < padding and v[0] < 0:
+                    v = wp.vec3(-restitution * v[0], v[1], v[2])
+                if grid_x >= model.grid_dim_x - padding and v[0] > 0:
+                    v = wp.vec3(-restitution * v[0], v[1], v[2])
 
-                if grid_z < padding and state.grid_v_out[grid_x, grid_y, grid_z][2] < 0:
-                    state.grid_v_out[grid_x, grid_y, grid_z] = wp.vec3(
-                        state.grid_v_out[grid_x, grid_y, grid_z][0],
-                        state.grid_v_out[grid_x, grid_y, grid_z][1],
-                        0.0,
-                    )
-                if (
-                    grid_z >= model.grid_dim_z - padding
-                    and state.grid_v_out[grid_x, grid_y, grid_z][2] > 0
-                ):
-                    state.grid_v_out[grid_x, grid_y, grid_z] = wp.vec3(
-                        state.grid_v_out[grid_x, grid_y, grid_z][0],
-                        state.grid_v_out[grid_x, grid_y, grid_z][1],
-                        0.0,
-                    )
+                if grid_y < padding and v[1] < 0:
+                    v = wp.vec3(v[0], -restitution * v[1], v[2])
+                if grid_y >= model.grid_dim_y - padding and v[1] > 0:
+                    v = wp.vec3(v[0], -restitution * v[1], v[2])
+
+                if grid_z < padding and v[2] < 0:
+                    v = wp.vec3(v[0], v[1], -restitution * v[2])
+                if grid_z >= model.grid_dim_z - padding and v[2] > 0:
+                    v = wp.vec3(v[0], v[1], -restitution * v[2])
+
+                state.grid_v_out[grid_x, grid_y, grid_z] = v
+
 
         self.grid_postprocess.append(collide)
         self.modify_bc.append(None)

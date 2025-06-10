@@ -1,20 +1,20 @@
 {
-    "opacity_threshold": 0.02,
+    "opacity_threshold": 0.05,
     "rotation_degree": [
         25.0
     ],
     "rotation_axis": [
         1
     ],
-    "substep_dt": 1e-4,
+    "substep_dt": 1e-5,
     "frame_dt": 1e-2,
     "frame_num": 300,
-    "E": 2e3,
+    "E": 1e8,
     "nu": 0.3,
-    "material": "jelly",
-    "rpic_damping": 0.5,
+    "yield_stress": 1e5,
+    "material": "metal",
     "grid_v_damping_scale": 0.9995,
-    "density": 200,
+    "density": 1000,
     "scale": 0.6,
     "g": [
         0.0,
@@ -24,12 +24,12 @@
     "n_grid": 150,
     "particle_filling": {
         "n_grid": 80,
-        "density_threshold": 100.0,
-        "search_threshold": 0.2,
+        "density_threshold": 60.0,
+        "search_threshold": 0.4,
         "search_exclude_direction": -1,
         "ray_cast_direction": 4,
         "max_particles_num": 1000000,
-        "max_partciels_per_cell": 4,
+        "max_partciels_per_cell": 1,
         "smooth": true,
         "boundary":
         [

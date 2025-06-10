@@ -56,7 +56,7 @@ def kirchoff_stress_StVK(
     )
 @wp.func
 def kirchoff_stress_StVK_water(
-    F: wp.mat33, U: wp.mat33, V: wp.mat33, sig: wp.vec3, mu: float, lam: float, p: int, velocity: wp.vec3
+    F: wp.mat33, U: wp.mat33, V: wp.mat33, sig: wp.vec3, mu: float, lam: float, p:int
 ):
     sig = wp.vec3(
         wp.max(sig[0], 0.01), wp.max(sig[1], 0.01), wp.max(sig[2], 0.01)
@@ -64,34 +64,30 @@ def kirchoff_stress_StVK_water(
     epsilon = wp.vec3(wp.log(sig[0]), wp.log(sig[1]), wp.log(sig[2]))
     log_sig_sum = epsilon[0] + epsilon[1] + epsilon[2]
     ONE = wp.vec3(1.0, 1.0, 1.0)
-
     tau = 2.0 * mu * epsilon + lam * log_sig_sum * ONE
-    
-    # 新增非線性反應（剪應力強化）
-    tau = wp.vec3(tau[0], tau[1], 0.7*tau[2])
 
-    # 視覺用擾動（與變形有關）
-    disturb_amp = 0.1
+    # 視覺用小擾動，只改方向感不影響形變記憶
+    disturb_amp = 0.01
     tau += disturb_amp * wp.vec3(
-        F[0, 1] - F[1, 0],
-        F[1, 2] - F[2, 1],
-        0.0
+        wp.sin(wp.float(p)), wp.cos(wp.float(p)*1.3), 0.0
     )
+    # 對壓力項在 Z 軸方向弱化，使擴散偏平面
+    tau = wp.vec3(tau[0], tau[1], 0.5 * tau[2])  # 降低 Z 壓力
+    tension_bias = 1.0
+    tau = wp.vec3(tau[0] + tension_bias * epsilon[0],
+              tau[1] + tension_bias * epsilon[1],
+              tau[2] + tension_bias * epsilon[2])
+
+    # 加上Damping讓內部壓力自然衰減
+    damping = 0.02
+    tau *= (1.0-damping)
     
-    # 保留壓力張量
-    tension_bias = 0.05
-    tau += tension_bias * epsilon
-
-    # 當阻尼，避免過度反應
-    tau *= 0.98
-
     return (
         U
         * wp.mat33(tau[0], 0.0, 0.0, 0.0, tau[1], 0.0, 0.0, 0.0, tau[2])
         * wp.transpose(V)
         * wp.transpose(F)
     )
-
 
 
 @wp.func
@@ -292,11 +288,8 @@ def water_return_mapping(F_trial: wp.mat33, model: MPMModelStruct, p: int, dt: f
         )
         s_new = (s_new_norm / s_trial_norm) * s_trial
         epsilon_new = (1.0 / (2.0 * model.mu[p])) * s_new + wp.vec3(trace_epsilon / 3.0)
-        # ✅ 留部分應變記憶
-        epsilon_new = 0.8 * epsilon_new + 0.2 * epsilon
     else:
-        # ✅ 即使沒流動，也保留一點剪應力
-        epsilon_new = 0.9 * epsilon + 0.1 * wp.vec3(trace_epsilon / 3.0)
+        epsilon_new = epsilon
 
     sig_elastic = wp.mat33(
         wp.exp(epsilon_new[0]), 0.0, 0.0,
@@ -304,9 +297,21 @@ def water_return_mapping(F_trial: wp.mat33, model: MPMModelStruct, p: int, dt: f
         0.0, 0.0, wp.exp(epsilon_new[2])
     )
     F_elastic = U * sig_elastic * wp.transpose(V)
-    F_out = 0.8 * F_elastic + 0.2 * F_trial
-    return F_out
 
+    # 加入平面擴散擾動，但只有在 F_trial 有明顯偏離單位矩陣時才加
+    delta_F = F_trial - wp.mat33(1.0, 0.0, 0.0,
+                                 0.0, 1.0, 0.0,
+                                 0.0, 0.0, 1.0)
+
+    delta_norm = wp.sqrt(
+        delta_F[0,0]*delta_F[0,0] + delta_F[0,1]*delta_F[0,1] + delta_F[0,2]*delta_F[0,2] +
+        delta_F[1,0]*delta_F[1,0] + delta_F[1,1]*delta_F[1,1] + delta_F[1,2]*delta_F[1,2] +
+        delta_F[2,0]*delta_F[2,0] + delta_F[2,1]*delta_F[2,1] + delta_F[2,2]*delta_F[2,2] 
+    )
+
+    F_out = 0.8 * F_elastic + 0.2 * F_trial
+    
+    return F_out
 
 
 
@@ -576,7 +581,7 @@ def compute_stress_from_F_trial(
             )
         if model.material[p] == 6:
             stress = kirchoff_stress_StVK_water(
-                state.particle_F[p], U, V, sig, model.mu[p], model.lam[p], p, state.particle_v[p]
+                state.particle_F[p], U, V, sig, model.mu[p], model.lam[p], p
             )
         if model.material[p] == 1:
             stress = kirchoff_stress_StVK(

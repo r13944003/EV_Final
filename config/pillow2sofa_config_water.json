@@ -1,0 +1,63 @@
+{
+    "opacity_threshold": 0.05,
+    "rotation_degree": [],
+    "rotation_axis": [],
+    "substep_dt": 1e-4,
+    "frame_dt": 2e-2,
+    "frame_num": 250,
+    "E": 1e4,
+    "nu": 0.45,
+    "n_grid": 100,
+    "material": "water",
+    "yield_stress": 0.1,
+    "plastic_viscosity":0.001,
+    "density": 1000,
+    "g": [
+        0.0,
+        0,
+        -5.0
+    ],
+    "particle_filling": {
+        "n_grid": 100,
+        "density_threshold": 40.0,
+        "search_threshold": 0.5,
+        "search_exclude_direction": 5,
+        "ray_cast_direction": 0,
+        "max_particles_num": 4000000,
+        "max_partciels_per_cell": 10,
+        "boundary": [
+            0.6,
+            1.4,
+            0.6,
+            1.4,
+            0.92,
+            1.72
+        ]
+    },
+    "boundary_conditions": [
+        {
+            "type": "bounding_box",
+            "padding": 40,
+            "restitution": 0.1
+        }
+    ],
+    "mpm_space_vertical_upward_axis": [
+        0,
+        0,
+        1
+    ],
+    "mpm_space_viewpoint_center": [
+        1,
+        1,
+        1
+    ],
+    "default_camera_index": -1,
+    "show_hint": false,
+    "init_azimuthm": -90.0,
+    "init_elevation": 30.0,
+    "init_radius": 2.5,
+    "move_camera": false,
+    "delta_a": 0.5,
+    "delta_e": 0.0,
+    "delta_r": 0.0
+}

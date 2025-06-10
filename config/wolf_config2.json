@@ -19,8 +19,8 @@
         -9.8
     ],
     "friction_angle": 30,
-    "cohesion": 0.0000,
-    "n_grid": 200,
+    "cohesion": 0.0001,
+    "n_grid": 100,
     "particle_filling": {
         "n_grid": 100,
         "density_threshold": 100.0,
@@ -28,7 +28,7 @@
         "search_exclude_direction": 2,
         "ray_cast_direction": 4,
         "max_particles_num": 2000000,
-        "max_partciels_per_cell": 1,
+        "max_partciels_per_cell": 10,
         "boundary": [
             0.4,
             1.6,
@@ -45,34 +45,21 @@
             "type": "bounding_box"
         },
         {
-            "type": "surface_collider",
+            "type": "",
             "point": [
                 1,
                 1,
-                0.48
+                -0.5
             ],
             "normal": [
                 0.0,
                 0.0,
                 1.0
             ],
-            "surface": "sticky",
-            "friction": 0.0,
+            "surface": "slip",
+            "friction": 0.2,
             "start_time": 0,
             "end_time": 1e3
-        },
-        {
-            "type": "release_particles_sequentially",
-            "normal": [
-                1,
-                0,
-                0
-            ],
-            "start_position": 1.5,
-            "end_position": 0.5,
-            "num_layers": 50,
-            "start_time": 0.0,
-            "end_time": 1.5
         }
     ],
     "mpm_space_vertical_upward_axis": [
@@ -90,7 +77,7 @@
     "init_azimuthm": 170,
     "init_elevation": 0,
     "init_radius": 1.6,
-    "move_camera": true,
+    "move_camera": false,
     "delta_a": -2.4,
     "delta_e": 0.8,
     "delta_r": 0.0

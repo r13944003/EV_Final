@@ -6,11 +6,11 @@
     "rotation_axis": [
         1,2
     ],
-    "substep_dt": 1e-4,
+    "substep_dt": 1e-5,
     "frame_dt": 1e-2,
     "frame_num": 400,
-    "E": 1e5,
-    "yield_stress": 1e2,
+    "E": 1e8,
+    "yield_stress": 1e5,
     "nu": 0.3,
     "material": "metal",
     "grid_v_damping_scale": 0.9999,

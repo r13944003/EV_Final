@@ -32,7 +32,13 @@ conda create -n PhysGaussian python=3.9
 conda activate PhysGaussian
 
 pip install -r requirements.txt
-pip install -e gaussian-splatting/submodules/diff-gaussian-rasterization/
+
+git clone https://github.com/graphdeco-inria/diff-gaussian-rasterization.git
+cd diff-gaussian-rasterization
+# dowmload glm  from https://github.com/g-truc/glm/releases/tag/0.9.9.8
+# put it under diff-gaussian-rasterization/third_party/glm
+pip install -e .
+
 pip install -e gaussian-splatting/submodules/simple-knn/
 ```
 By default, We use pytorch=2.0.0+cu118.

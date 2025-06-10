@@ -18,7 +18,7 @@ class MPMModelStruct:
     lam: wp.array(dtype=float)
     E: wp.array(dtype=float)
     nu: wp.array(dtype=float)
-    material: int
+    material: wp.array(dtype=int)
 
     ######## for plasticity ####
     yield_stress: wp.array(dtype=float)
@@ -29,6 +29,9 @@ class MPMModelStruct:
     xi: float
     plastic_viscosity: float
     softening: float
+    
+    ######### added #####
+    cohesion: float
 
     ####### for damping
     rpic_damping: float
@@ -103,6 +106,11 @@ class Dirichlet_collider:
     horizontal_axis_1: wp.vec3
     horizontal_axis_2: wp.vec3
     half_height_and_radius: wp.vec2
+    
+    # boundingbox
+    padding: int
+    restitution: float
+    
 
 
 @wp.struct
@@ -154,6 +162,8 @@ class MaterialParamsModifier:
     E: float
     nu: float
     density: float
+    material: int
+    
 
 
 @wp.struct

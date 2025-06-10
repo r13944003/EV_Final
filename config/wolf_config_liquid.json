@@ -9,17 +9,17 @@
     "substep_dt": 2e-5,
     "frame_dt": 4e-2,
     "frame_num": 50,
-    "E": 5e7,
+    "E": 5e5,
     "nu": 0.3,
-    "material": "sand",
-    "density": 2000,
+    "material": "foam",
+    "density": 1000,
+    "yield_stress": 1e3,
+    "plastic_viscosity":200,
     "g": [
         0.0,
         0.0,
         -9.8
     ],
-    "friction_angle": 30,
-    "cohesion": 0.0000,
     "n_grid": 200,
     "particle_filling": {
         "n_grid": 100,
@@ -56,23 +56,10 @@
                 0.0,
                 1.0
             ],
-            "surface": "sticky",
-            "friction": 0.0,
+            "surface": "slip",
+            "friction": 0.2,
             "start_time": 0,
             "end_time": 1e3
-        },
-        {
-            "type": "release_particles_sequentially",
-            "normal": [
-                1,
-                0,
-                0
-            ],
-            "start_position": 1.5,
-            "end_position": 0.5,
-            "num_layers": 50,
-            "start_time": 0.0,
-            "end_time": 1.5
         }
     ],
     "mpm_space_vertical_upward_axis": [
